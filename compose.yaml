@@ -1,0 +1,37 @@
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    # Ensure other services wait until Redis is actually "ready"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./api
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  worker:
+    build: ./worker
+    env_file:
+      - .env
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "80:8080" # Map host 80 to the new internal 8080
+    depends_on:
+      backend:
+        condition: service_healthy
