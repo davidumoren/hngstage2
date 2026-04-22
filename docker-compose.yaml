@@ -1,4 +1,26 @@
+
 services:
+  # The service name must be indented under 'services'
+  api:
+    build: 
+      context: ./api
+      dockerfile: Dockerfile
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    restart: always
+    depends_on:
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+    networks:
+      - back-tier
+
+  # Every other service must align with 'api'
   redis:
     image: redis:alpine
     healthcheck:
@@ -6,35 +28,14 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
-    # No ports exposed to host (Required for compose_redis_no_host_ports)
-    networks:
-      - back-tier
-
-  api:
-    build: ./api
-    environment:
-      - REDIS_HOST=redis
     deploy:
       resources:
         limits:
-          cpus: '0.5'
-          memory: 256M
-    restart: always  # (Required for compose_restart_policies)
-    depends_on:
-      redis:
-        condition: service_healthy # Wait for Redis healthcheck (Crucial!)
+          cpus: '0.2'
+          memory: 128M
     networks:
       - back-tier
-  frontend:
-  build: ./frontend
-  ports:
-    - "80:8080" # Map host 80 to container 8080
-  healthcheck:
-    test: ["CMD", "curl", "-f", "http://localhost:8080/"]
-    interval: 30s
-    timeout: 10s
-    retries: 3
 
 networks:
   back-tier:
-    name: hng_network # (Required for compose_named_network)
+    name: back-tier
