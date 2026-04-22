@@ -45,3 +45,4 @@ def health_check():
         return {"status": "ok"}                      # "ok" not "healthy"
     except Exception as e:
         raise HTTPException(status_code=503, detail=str(e))  # proper 503
+    
