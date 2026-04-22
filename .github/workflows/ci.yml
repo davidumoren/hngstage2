@@ -92,7 +92,7 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      # 🔥 Enables build caching (big performance boost)
+      #  Enables build caching (big performance boost)
       - name: Build and Push Image
         uses: docker/build-push-action@v5
         with:
@@ -105,7 +105,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Scan Image with Trivy
-        uses: aquasecurity/trivy-action@0.20.0
+        uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ env.IMAGE_NAME }}/hng14-stage2-devops-${{ matrix.service }}:latest
           format: table
