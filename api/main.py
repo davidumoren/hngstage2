@@ -46,4 +46,3 @@ def health_check():
     except Exception as e:
         raise HTTPException(status_code=503, detail=str(e))
     
-    
