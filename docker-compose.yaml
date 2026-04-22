@@ -1,41 +1,95 @@
 
+networks:
+  appnet:
+    driver: bridge
+
 services:
-  # The service name must be indented under 'services'
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    networks:
+      - appnet
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 128M
+
   api:
-    build: 
+    build:
       context: ./api
       dockerfile: Dockerfile
+    restart: unless-stopped
+    networks:
+      - appnet
     environment:
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-    restart: always
+      - REDIS_HOST=${REDIS_HOST:-redis}
+      - REDIS_PORT=${REDIS_PORT:-6379}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 256M
+
+  worker:
+    build:
+      context: ./worker
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    networks:
+      - appnet
+    environment:
+      - REDIS_HOST=${REDIS_HOST:-redis}
+      - REDIS_PORT=${REDIS_PORT:-6379}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
     depends_on:
       redis:
         condition: service_healthy
     deploy:
       resources:
         limits:
-          cpus: '0.5'
-          memory: 256M
-    networks:
-      - back-tier
+          cpus: "0.5"
+          memory: 128M
 
-  # Every other service must align with 'api'
-  redis:
-    image: redis:alpine
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    networks:
+      - appnet
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    environment:
+      - API_URL=${API_URL:-http://api:8000}
+      - PORT=${PORT:-3000}
+    depends_on:
+      api:
+        condition: service_healthy
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 5
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/health', (r) => { process.exit(r.statusCode === 200 ? 0 : 1); }).on('error', () => process.exit(1));"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
     deploy:
       resources:
         limits:
-          cpus: '0.2'
-          memory: 128M
-    networks:
-      - back-tier
-
-networks:
-  back-tier:
-    name: back-tier
+          cpus: "0.5"
+          memory: 256M

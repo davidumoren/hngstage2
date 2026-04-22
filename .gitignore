@@ -1,5 +1,18 @@
+# Environment files — never commit secrets
 .env
-venv
-.gitignore
-__pycache__
-node_modules
+**/.env
+*.env
+
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+coverage.xml
+
+# Node
+node_modules/
+
+# CI artifacts
+*.sarif

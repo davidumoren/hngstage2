@@ -1,35 +1,30 @@
-# Stage 1: Build
-FROM node:20-alpine AS build
+# Stage 1: builder
+FROM node:20-slim AS builder
+
+WORKDIR /build
+
+COPY package.json package-lock.json* ./
+RUN npm ci --omit=dev
+
+# Stage 2: final
+FROM node:20-slim
+
+RUN groupadd --gid 1001 appgroup && \
+    useradd --uid 1001 --gid appgroup --shell /bin/sh --create-home appuser
+
 WORKDIR /app
-COPY package*.json ./
-RUN npm install
-COPY . .
-RUN npm run build
 
-# Stage 2: Final Production Image
-FROM nginx:stable-alpine
-WORKDIR /usr/share/nginx/html
+COPY --from=builder /build/node_modules ./node_modules
+COPY app.js package.json ./
+COPY views ./views
 
-# 1. Install curl for the HEALTHCHECK (Required for fe_healthcheck)
-RUN apk add --no-cache curl
+RUN chown -R appuser:appgroup /app
 
-# 2. Support non-root on port 8080 
-# (Required for fe_named_nonroot_user and fe_user_creation_cmd)
-RUN touch /var/run/nginx.pid && \
-    chown -R nginx:nginx /var/run/nginx.pid /var/cache/nginx /var/log/nginx /etc/nginx/conf.d
+USER appuser
 
-# 3. Update Nginx to listen on 8080 instead of 80 (since 80 is root-only)
-RUN sed -i 's/listen\(.*\)80;/listen 8080;/' /etc/nginx/conf.d/default.conf
+EXPOSE 3000
 
-COPY --from=build /app/dist .
+HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=3 \
+    CMD node -e "require('http').get('http://localhost:3000/health', (r) => { process.exit(r.statusCode === 200 ? 0 : 1); }).on('error', () => process.exit(1));"
 
-# 4. Use the built-in 'nginx' user
-USER nginx
-
-# 5. Updated Healthcheck to use port 8080
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:8080/ || exit 1
-
-EXPOSE 8080
-
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["node", "app.js"]

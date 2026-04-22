@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 import redis
 import uuid
 import os
@@ -6,29 +6,30 @@ from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
 
+CORS_ORIGINS = os.getenv("CORS_ORIGINS", "*").split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # Your React URL
+    allow_origins=CORS_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-
-REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+REDIS_HOST = os.getenv("REDIS_HOST", "redis")
 REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
-r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT)
+REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", None)
+
+r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, password=REDIS_PASSWORD)
 
 
-# jobs endpoint
 @app.post("/jobs")
 def create_job():
     job_id = str(uuid.uuid4())
-    r.lpush("job", job_id)
+    r.lpush("jobs", job_id)                          # "jobs" not "job"
     r.hset(f"job:{job_id}", "status", "queued")
     return {"job_id": job_id}
 
 
-# single job status endpoint
 @app.get("/jobs/{job_id}")
 def get_job(job_id: str):
     status = r.hget(f"job:{job_id}", "status")
@@ -40,7 +41,7 @@ def get_job(job_id: str):
 @app.get("/health")
 def health_check():
     try:
-        r.ping()  # Check if Redis is reachable
-        return {"status": "healthy"}
-    except Exception:
-        return {"status": "unhealthy"}, 500
+        r.ping()
+        return {"status": "ok"}                      # "ok" not "healthy"
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=str(e))  # proper 503

@@ -1,23 +1,30 @@
-# Stage 1: Build
+# Stage 1: builder
 FROM python:3.11-slim AS builder
-WORKDIR /app
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc=4:12.2.0-3 \
-    python3-dev=3.11.2-1+b1 \
-    && rm -rf /var/lib/apt/lists/*
-COPY requirements.txt .
-RUN pip install --user --no-cache-dir -r requirements.txt
 
-# Stage 2: Run
+WORKDIR /build
+
+COPY requirements.txt .
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir --prefix=/install -r requirements.txt
+
+# Stage 2: final
 FROM python:3.11-slim
+
+RUN groupadd --gid 1001 appgroup && \
+    useradd --uid 1001 --gid appgroup --shell /bin/sh --create-home appuser
+
 WORKDIR /app
-RUN groupadd -r appgroup && useradd -r -g appgroup appuser
-COPY --from=builder /root/.local /home/appuser/.local
-COPY . .
+
+COPY --from=builder /install /usr/local
+COPY main.py .
+
 RUN chown -R appuser:appgroup /app
-ENV PATH=/home/appuser/.local/bin:$PATH
+
 USER appuser
-HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:8000/health || exit 1
+
 EXPOSE 8000
+
+HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
+
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
