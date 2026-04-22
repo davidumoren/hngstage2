@@ -1,35 +1,43 @@
-
 services:
-
   api:
-    build:
-      context: ./api
-    container_name: api
-    ports:
-      - "8000:8000"
+    build: ./api
+    networks:
+      - app-network
     environment:
-      - REDIS_HOST=redis
+      - REDIS_HOST=${REDIS_HOST:-redis}
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+      restart_policy:
+        condition: on-failure
     depends_on:
-      - redis
-
-  worker:
-    build:
-      context: ./worker
-    container_name: worker
-    environment:
-      - REDIS_HOST=redis
-    depends_on:
-      - redis
+      redis:
+        condition: service_healthy
 
   frontend:
-    build:
-      context: ./frontend
-    container_name: frontend
+    build: ./frontend
     ports:
-      - "3000:80"
-    depends_on:
-      - api
+      - "${FE_PORT:-3000}:80"
+    networks:
+      - app-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
 
   redis:
     image: redis:7-alpine
-    container_name: redis
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+networks:
+  app-network:
+    name: production-network
