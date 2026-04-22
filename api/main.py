@@ -40,8 +40,5 @@ def get_job(job_id: str):
 
 @app.get("/health")
 def health_check():
-    try:
-        r.ping()
-        return {"status": "ok"}
-    except Exception as e:
-        raise HTTPException(status_code=503, detail=str(e))
+    # Shallow check: Just confirm the API process is alive
+    return {"status": "ok"}
