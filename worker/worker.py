@@ -27,3 +27,4 @@ while True:
         # job is a tuple: (list_name, job_id)
         _, job_id = job
         process_job(job_id)
+        

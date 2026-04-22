@@ -65,6 +65,8 @@ jobs:
         with:
           name: coverage-report
           path: coverage.xml
+      - name: Run Flake8 (Python Linting)
+        run: flake8 api/ worker/ --count --select=E9,F63,F7,F82 --ignore=W292,W293 --show-source --statistics
 
 # =========================
 # BUILD (LOCAL REGISTRY)
