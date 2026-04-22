@@ -1,22 +1,35 @@
 
 services:
-  backend:
+
+  api:
     build:
       context: ./api
-      dockerfile: Dockerfile
+    container_name: api
     ports:
       - "8000:8000"
+    environment:
+      - REDIS_HOST=redis
+    depends_on:
+      - redis
 
   worker:
     build:
       context: ./worker
-      dockerfile: Dockerfile
+    container_name: worker
+    environment:
+      - REDIS_HOST=redis
+    depends_on:
+      - redis
 
   frontend:
     build:
       context: ./frontend
+    container_name: frontend
     ports:
       - "3000:80"
+    depends_on:
+      - api
 
   redis:
     image: redis:7-alpine
+    container_name: redis
