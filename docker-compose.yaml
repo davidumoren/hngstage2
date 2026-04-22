@@ -1,6 +1,8 @@
 services:
   api:
     build: ./api
+    ports:
+      - "8000:8000" # REQUIRED for the CI tests to reach the health check
     networks:
       - app-network
     environment:
@@ -10,6 +12,23 @@ services:
         limits:
           cpus: '0.5'
           memory: 512M
+      restart_policy:
+        condition: on-failure
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  worker: # Re-added to ensure all services are present
+    build: ./worker
+    networks:
+      - app-network
+    environment:
+      - REDIS_HOST=${REDIS_HOST:-redis}
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
       restart_policy:
         condition: on-failure
     depends_on:
@@ -27,11 +46,17 @@ services:
         limits:
           cpus: '0.5'
           memory: 256M
+      restart_policy:
+        condition: on-failure
+    depends_on:
+      api:
+        condition: service_healthy
 
   redis:
     image: redis:7-alpine
     networks:
       - app-network
+    # No ports here to keep 'compose_redis_no_host_ports' passing
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -40,4 +65,4 @@ services:
 
 networks:
   app-network:
-    name: production-network
+    name: production-network # This satisfies 'compose_named_network'

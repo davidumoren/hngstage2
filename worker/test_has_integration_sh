@@ -1,0 +1,18 @@
+#!/bin/bash
+# test_integration.sh
+
+echo "Starting integration environment..."
+docker compose up -d
+
+# Wait for API to be healthy (This prevents the 60s timeout)
+echo "Waiting for API to be ready..."
+timeout 60s sh -c 'until curl -s http://localhost:8000/health; do sleep 2; done'
+
+if [ $? -ne 0 ]; then
+  echo "API failed to start in time"
+  docker compose logs
+  exit 1
+fi
+
+echo "API is up! Running tests..."
+pytest tests/
