@@ -13,6 +13,7 @@ def process_job(job_id):
     time.sleep(2)  # simulate work
     r.hset(f"job:{job_id}", "status", "completed")
     print(f"Done: {job_id}")
+    
 
 while True:
     job = r.brpop("job", timeout=5)
