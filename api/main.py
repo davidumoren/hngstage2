@@ -2,27 +2,24 @@ from fastapi import FastAPI
 import redis
 import uuid
 import os
-
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"], # Your React URL
+    allow_origins=["http://localhost:5173"],  # Your React URL
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
-
-# r = redis.Redis(host="localhost", port=6379)
-
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
 r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT)
 
-#jobs endpoint
+
+# jobs endpoint
 @app.post("/jobs")
 def create_job():
     job_id = str(uuid.uuid4())
@@ -43,7 +40,7 @@ def get_job(job_id: str):
 @app.get("/health")
 def health_check():
     try:
-        r.ping() # Check if Redis is reachable
+        r.ping()  # Check if Redis is reachable
         return {"status": "healthy"}
     except Exception:
         return {"status": "unhealthy"}, 500
