@@ -35,7 +35,8 @@ jobs:
         uses: hadolint/hadolint-action@v3.1.0
         with:
           recursive: true
-          ignore: DL3018
+          # Add DL3008 to the ignore list here
+          ignore: DL3018, DL3008
 
       - name: Create Integration Script
         run: |

@@ -1,7 +1,10 @@
 # Stage 1: Build
 FROM python:3.11-slim AS builder
 WORKDIR /app
-RUN apt-get update && apt-get install -y --no-install-recommends gcc python3-dev
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc=4:12.2.0-3 \
+    python3-dev=3.11.2-1+b1 \
+    && rm -rf /var/lib/apt/lists/*
 COPY requirements.txt .
 RUN pip install --user --no-cache-dir -r requirements.txt
 
