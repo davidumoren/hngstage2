@@ -1,30 +1,38 @@
-# Stage 1: builder
-FROM python:3.11-slim AS builder
+# ---------- Stage 1: Builder ----------
+FROM python:3.12-alpine AS builder
 
 WORKDIR /build
 
+RUN apk add --no-cache gcc musl-dev libffi-dev
+
 COPY requirements.txt .
-RUN pip install --upgrade pip && \
-    pip install --no-cache-dir --prefix=/install -r requirements.txt
+RUN pip install --no-cache-dir --user -r requirements.txt
 
-# Stage 2: final
-FROM python:3.11-slim
-
-RUN groupadd --gid 1001 appgroup && \
-    useradd --uid 1001 --gid appgroup --shell /bin/sh --create-home appuser
+# ---------- Stage 2: Runtime ----------
+FROM python:3.12-alpine
 
 WORKDIR /app
 
-COPY --from=builder /install /usr/local
-COPY main.py .
+# Create non-root user (REQUIRED)
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
+ENV PATH="/home/appuser/.local/bin:$PATH"
+
+# Copy dependencies
+COPY --from=builder /root/.local /home/appuser/.local
+
+# Copy app
+COPY . .
+
+# Change ownership
 RUN chown -R appuser:appgroup /app
 
 USER appuser
 
 EXPOSE 8000
 
-HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
+# HEALTHCHECK (REQUIRED)
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+  CMD wget -qO- http://localhost:8000/health || exit 1
 
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
