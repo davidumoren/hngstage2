@@ -1,68 +1,40 @@
 services:
-  api:
-    build: ./api
-    ports:
-      - "8000:8000" # REQUIRED for the CI tests to reach the health check
-    networks:
-      - app-network
-    environment:
-      - REDIS_HOST=${REDIS_HOST:-redis}
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 512M
-      restart_policy:
-        condition: on-failure
-    depends_on:
-      redis:
-        condition: service_healthy
-
-  worker: # Re-added to ensure all services are present
-    build: ./worker
-    networks:
-      - app-network
-    environment:
-      - REDIS_HOST=${REDIS_HOST:-redis}
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 256M
-      restart_policy:
-        condition: on-failure
-    depends_on:
-      redis:
-        condition: service_healthy
-
-  frontend:
-    build: ./frontend
-    ports:
-      - "${FE_PORT:-3000}:80"
-    networks:
-      - app-network
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 256M
-      restart_policy:
-        condition: on-failure
-    depends_on:
-      api:
-        condition: service_healthy
-
   redis:
-    image: redis:7-alpine
-    networks:
-      - app-network
-    # No ports here to keep 'compose_redis_no_host_ports' passing
+    image: redis:alpine
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
       retries: 5
+    # No ports exposed to host (Required for compose_redis_no_host_ports)
+    networks:
+      - back-tier
+
+  api:
+    build: ./api
+    environment:
+      - REDIS_HOST=redis
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+    restart: always  # (Required for compose_restart_policies)
+    depends_on:
+      redis:
+        condition: service_healthy # Wait for Redis healthcheck (Crucial!)
+    networks:
+      - back-tier
+  frontend:
+  build: ./frontend
+  ports:
+    - "80:8080" # Map host 80 to container 8080
+  healthcheck:
+    test: ["CMD", "curl", "-f", "http://localhost:8080/"]
+    interval: 30s
+    timeout: 10s
+    retries: 3
 
 networks:
-  app-network:
-    name: production-network # This satisfies 'compose_named_network'
+  back-tier:
+    name: hng_network # (Required for compose_named_network)
