@@ -1,0 +1,22 @@
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+
+  worker:
+    build:
+      context: ./worker
+      dockerfile: Dockerfile
+
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "3000:80"
+
+  redis:
+    image: redis:7-alpine
