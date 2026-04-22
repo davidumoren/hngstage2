@@ -14,8 +14,16 @@ def process_job(job_id):
     print(f"Done: {job_id}")
 
 
+# while True:
+#     job = r.brpop("job", timeout=5)
+#     if job:
+#         _, job_id = job
+#         process_job(job_id.decode())
 while True:
-    job = r.brpop("job", timeout=5)
+    # 4. CRITICAL FIX: Changed "job" to "jobs" (plural) to match api/main.py
+    # If these don't match, your integration tests will FAIL.
+    job = r.brpop("jobs", timeout=5)
     if job:
+        # job is a tuple: (list_name, job_id)
         _, job_id = job
-        process_job(job_id.decode())
+        process_job(job_id)
