@@ -49,9 +49,20 @@ jobs:
         run: pip install pytest pytest-cov requests redis
 
       - name: Create Redis Mock
-        # Required for test_redis_mocked
         run: |
-          echo "import pytest; from unittest.mock import MagicMock; import redis; @pytest.fixture(autouse=True); def mock_redis(monkeypatch): mock_red = MagicMock(); monkeypatch.setattr(redis, 'Redis', lambda **kwargs: mock_red); return mock_red" > tests/conftest.py
+          mkdir -p tests
+          cat << 'EOF' > tests/conftest.py
+          import pytest
+          from unittest.mock import MagicMock
+          import redis
+
+          @pytest.fixture(autouse=True)
+          def mock_redis(monkeypatch):
+              mock_red = MagicMock()
+              # This ensures no real Redis connection is attempted
+              monkeypatch.setattr(redis, "Redis", lambda **kwargs: mock_red)
+              return mock_red
+          EOF
 
       - name: Run Unit Tests with Coverage
         # PYTHONPATH=api satisfies pipeline_coverage_artifact
